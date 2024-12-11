@@ -3,4 +3,4 @@
 # Group 17: Faedo Nicolò, Paltrinieri Mirco, Sabatini Luca
 # Bologna, December 2024
 #
-# Solver file
+# Costs file
