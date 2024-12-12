@@ -4,6 +4,3 @@
 # Bologna, December 2024
 #
 # Armijo file
-
-
-##armijo parameters
