@@ -6,79 +6,87 @@
 # Dynamics file
 
 import numpy as np
+from scipy.spatial.distance import euclidean
 
-"""
-Discretization of the system, using Forward Euler method
-xt = xt + dt * xt'
-"""
+ns = 8  # State dimension
+ni = 2  # Input dimension
 
-nstate = 8
-ninput = 2
+n_points = 4  # Number of points in the surface
 
-#discretization step
-dstep = 1e-3
+dt = 1e-3 # discretization stepsize - Forward Euler
 
-#distance between 
-d=0.2
+m = 0.1
+m_act = 0.2
+m_i = [m, m_act, m, m_act]
+
+d = 0.2
+alpha = 128*0.25
+c = 0.1
 
 def dynamics(xx,uu):
+    """
+    Dynamics of a discrete-time Actuated Flexible Surface
 
-    # xx = [: , None]
-    # uu = [: , None]
+    Args
+        - xx \in \R^8 state at time t
+        - uu \in \R^2 input at time t
 
-    m = [0.1 , 0.2 , 0.1 , 0.2]
-    ##TODO alpha
-    xxs = np.zeros((nstate,1))
+    Return 
+        - next state xx_{t+1}
+        - gradient of f wrt x, at xx,uu
+        - gradient of f wrt u, at xx,uu
 
-    xxs[0] = xx[0] + dstep * xx[4]
-    xxs[4] = xx[4] + dstep * 1/m[0] * (- alpha * sum(xx,1) - c * xx[4])
+    Note
+        - AA = dxf'
+        - BB = duf' 
+    """
+    xx = xx[:,None]
+    uu = uu[:,None]
 
-    xxs[1] = xx[1] + dstep * xx[5]
-    xxs[5] = xx[5] + dstep * 1/m[1] * (- alpha * sum(xx,2) - c * xx[5])
+    xxp = np.zeros((ns,1))
+    dxf = np.zeros((ns, ns))
+    duf = np.zeros((ns, ni))
 
-    xxs[2] = xx[2] + dstep * xx[6]
-    xxs[6] = xx[6] + dstep * 1/m[2] * (- alpha * sum(xx,3) - c * xx[6])
+    # Compute dynamics for each point
+    for i in range(n_points):
+        z_i = xx[i, 0]
+        v_i = xx[i+n_points, 0]
 
-    xxs[3] = xx[3] + dstep * xx[7]
-    xxs[7] = xx[7] + dstep * 1/m[3] * (- alpha * sum(xx,4) - c * xx[7])
-        
-    ##########
-    # Gradient
-    ##########
+        # Determine the force for the current point
+        if i == 1:  # Point 2 (actuated)
+            F_i = uu[0, 0]
+        elif i == 3:  # Point 4 (actuated)
+            F_i = uu[1, 0]
+        else:  # Non-actuated points
+            F_i = 0
 
-    #initialization
+        # Summation term for interactions with all points (i != j)
+        summation = 0
+        for j in range(n_points):
+            if i != j:
+                z_j = xx[j, 0]
+                Lij = euclidean([abs(i - j)*d], [z_i - z_j])
+                # Updated summation formula
+                summation += (z_i - z_j) / (Lij * (Lij ** 2 - (z_i - z_j) ** 2))
 
-    dfx = np.zeros((ns, ns))
-    dfu = np.zeros((ni, ns))
+        # Update position (z_i) and velocity (v_i) using Euler's method
+        xxp[i] = z_i + dt * v_i
+        xxp[i+n_points] = v_i + dt * (1 / m_i[i]) * (F_i - alpha * summation - c * v_i)
 
-        
-    #df1
-    dfx[0,0] = 1
-    dfx[1,0] = dt
+        # Gradients for position (z_i)
+        dxf[i, i] = 1  # dz_i/dz_i
+        dxf[i, i + n_points] = dt  # dz_i/dv_i
 
-    dfu[0,0] = 0
+        # Gradients for velocity (v_i)
+        dxf[i+n_points, i] = dt * (-alpha / m_i[i]) * (sum(
+            (1 / (Lij * (Lij ** 2 - (z_i - z_j) ** 2)) for j in range(n_points) if j != i)))  # dv_i/dz_i
+        dxf[i + n_points, i + n_points] = 1 - dt * c / m_i[i]  # dv_i/dv_i
 
-    #df2
+        # Gradients for control inputs
+        if i == 1:  # Point 2 (actuated)
+            duf[i + n_points, 0] = dt / m_i[i]
+        elif i == 3:  # Point 4 (actuated)
+            duf[i + n_points, 1] = dt / m_i[i]
 
-    dfx[0,1] = dt*-gg / ll * np.cos(xx[0,0])
-    dfx[1,1] = 1 + dt*(- kk / (mm * ll))
-
-    dfu[0,1] = dt / (mm * (ll ** 2))
-
-    xxp = xxp.squeeze()
-
-    return xxp, dfx, dfu
-
-
-
-
-
-def sum(xx,iter):
-    temp=0
-    for i in range(4) and i != iter:
-        temp += (xx[iter]-xx[i])/(Lij(iter,i)*(Lij(iter,i)**2 - (xx[iter] - xx[i])**2))
-    return temp
-
-
-def Lij(iter,i):
-    return np.sqrt((xx[iter]-xx[i])**2 + ((d*(iter-i))**2))
+    xxp = xxp.squeeze()  # Convert back to vector format
+    return xxp, dxf, duf

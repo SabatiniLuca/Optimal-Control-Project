@@ -1,3 +1,3 @@
 Latex eqaution of the model:
-\ddot{z}_i = \frac{1}{m_i} \left[ F_i - \alpha \sum_{j \in A} \frac{z_{i}-z_{j}}{L_{ij} (L_{ij}^2 -(z_i - z_j)^2)} - c \dot{z}_i \right]
+\ddot{z}_i = \frac{1}{m_i} \left[ F_i - \alpha \sum_{j \in A} \frac{z_{i}-z_{j}}{L_{ij} - (z_i - z_j)^2} - c \dot{z}_i \right]
 
