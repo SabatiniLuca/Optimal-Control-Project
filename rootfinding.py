@@ -12,9 +12,14 @@ from matplotlib.animation import FuncAnimation
 from scipy.interpolate import CubicSpline
 
 
+# Allow Ctrl-C to work despite plotting
+import signal
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+
 #parameters
 max_iters = 100
-stepsize = 0.3
+stepsize = 0.23
 tol = 1
 
 d = dyn.d
@@ -28,7 +33,7 @@ randInit = False
 
 
 #initializations
-if not randInit: xx_init = np.array([0.7, 0.2, -0.3, 0.2, 0,0,0,0])
+if not randInit: xx_init = np.array([0, 0.3, -0.3, 0.3, 0,0,0,0])
 else :xx_init = np.random.uniform(-1,1,8)
 uu_init = np.array([0,0])
 

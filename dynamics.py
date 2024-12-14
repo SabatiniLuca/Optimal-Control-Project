@@ -13,7 +13,7 @@ ni = 2  # Input dimension
 
 n_points = 4  # Number of points in the surface
 
-dt = 1e-3 # discretization stepsize - Forward Euler
+dt = 1e-4 # discretization stepsize - Forward Euler
 
 m = 0.1
 m_act = 0.2
@@ -77,10 +77,11 @@ def dynamics(xx,uu):
         dxf[i, i] = 1  # dz_i/dz_i
         dxf[i, i + n_points] = dt  # dz_i/dv_i
 
-        # Gradients for velocity (v_i)
-        dxf[i,i+n_points] = dt * (-alpha / m_i[i]) * (sum(
-            (1 / (Lij * (Lij ** 2 - (z_i - z_j) ** 2)) for j in range(n_points) if j != i)))  # dv_i/dz_i
-        dxf[i + n_points,i + n_points] = 1 - dt * c / m_i[i]  # dv_i/dv_i
+        dxf[i, i+n_points] = dt * (-alpha / m_i[i]) * (sum((1 / (Lij**3) for j in range(n_points) if j != i)))  # dv_i/dz_i
+        for j in range(n_points):
+            if j != i :
+                dxf[j, i+n_points] = dt * (alpha / m_i[i]) * (1 / (Lij**3))  # dv_i/dz_j
+        dxf[i + n_points, i + n_points] = 1 - dt * c / m_i[i]# dv_i/dv_i
 
         # Gradients for control inputs
         if i == 1:  # Point 2 (actuated)
