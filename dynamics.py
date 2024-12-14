@@ -40,8 +40,8 @@ def dynamics(xx,uu):
         - AA = dxf'
         - BB = duf' 
     """
-    xx = xx[:,None]
-    uu = uu[:,None]
+    if xx.ndim == 1 :xx = xx[:, None]
+    if uu.ndim ==1 :uu = uu[:,None]
 
     xxp = np.zeros((ns,1))
     dxf = np.zeros((ns, ns))
@@ -65,7 +65,7 @@ def dynamics(xx,uu):
         for j in range(n_points):
             if i != j:
                 z_j = xx[j, 0]
-                Lij = euclidean([abs(i - j)*d], [z_i - z_j])
+                Lij = euclidean([(i - j)*d], [z_i - z_j])
                 # Updated summation formula
                 summation += (z_i - z_j) / (Lij * (Lij ** 2 - (z_i - z_j) ** 2))
 
@@ -78,9 +78,9 @@ def dynamics(xx,uu):
         dxf[i, i + n_points] = dt  # dz_i/dv_i
 
         # Gradients for velocity (v_i)
-        dxf[i+n_points, i] = dt * (-alpha / m_i[i]) * (sum(
+        dxf[i,i+n_points] = dt * (-alpha / m_i[i]) * (sum(
             (1 / (Lij * (Lij ** 2 - (z_i - z_j) ** 2)) for j in range(n_points) if j != i)))  # dv_i/dz_i
-        dxf[i + n_points, i + n_points] = 1 - dt * c / m_i[i]  # dv_i/dv_i
+        dxf[i + n_points,i + n_points] = 1 - dt * c / m_i[i]  # dv_i/dv_i
 
         # Gradients for control inputs
         if i == 1:  # Point 2 (actuated)
