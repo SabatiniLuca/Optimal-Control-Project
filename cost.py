@@ -1,52 +1,84 @@
 #
-# Course Project #2: Optimal Control of an Actuated Flexible Surface
-# Group 17: Faedo Nicolò, Paltrinieri Mirco, Sabatini Luca
-# Bologna, December 2024
+# Gradient method for Optimal Control
+# Cost functions
+# Lorenzo Sforni, Marco Falotico
+# Bologna, 22/11/2022
 #
-# Costs file
-
-# import dynamics as dyn
 
 import numpy as np
+import control
+# import dynamics_msd as dyn
+import dynamics_pend as dyn
+
+ns = dyn.ns
+ni = dyn.ni
+
+# QQt = np.array([[10000, 0], [0, 100]])
+QQt = 0.1*np.diag([100.0, 1.0])
+RRt = 0.01*np.eye(ni)
+# RRt = 1*np.eye(ni)
+
+# QQT = QQt
 
 
-def cost_fcn(xx):
-    """
-    Input:
-    - state: Optimization variable (8 state variables) [z1, z1_dot, ..., xx[3], xx[3]_dot].
-    
-    Output:
-    - cost: Scalar value of the cost function.
-    - grad: Gradient of the cost function w.r.t. state variables.
-    """
-    
-    # Cost components
-    # Penalize deviations of non-actuated points from zero
-    cost_non_actuated = xx[0]**2 + xx[2]**2  # Non-actuated positions
-    cost_actuated = xx[1]**2 + xx[3]**2      # Actuated positions
-    
-    # Penalize differences between neighboring points (coupling term)
-    coupling_term = ((xx[1] - xx[0])**2 + (xx[2] - xx[1])**2 + (xx[3] - xx[2])**2)
-    
-    # Penalize velocities (smooth dynamics)
-    velocity_term = xx[4]**2 + xx[5]**2 + xx[6]**2 + xx[7]**2
-    
-    # Total cost
-    cost = cost_non_actuated + cost_actuated + coupling_term + velocity_term
-    
-    # Gradients w.r.t. each state variable
-    grad = np.zeros(8)
-    
-    # Gradients for positions
-    grad[0] = 2 * xx[0] - 2 * (xx[1] - xx[0])       # z1
-    grad[2] = 2 * xx[1] + 2 * (xx[1] - xx[0]) - 2 * (xx[2] - xx[1])  # xx[1]
-    grad[4] = 2 * xx[2] + 2 * (xx[2] - xx[1]) - 2 * (xx[3] - xx[2])  # xx[2]
-    grad[6] = 2 * xx[3] + 2 * (xx[3] - xx[2])       # xx[3]
-    
-    # Gradients for velocities
-    grad[1] = 2 * xx[4]  # z1_dot
-    grad[3] = 2 * xx[5]  # xx[1]_dot
-    grad[5] = 2 * xx[6]  # xx[2]_dot
-    grad[7] = 2 * xx[7]  # xx[3]_dot
-    
-    return cost, grad
+def stagecost(xx,uu, xx_ref, uu_ref):
+  """
+    Stage-cost 
+
+    Quadratic cost function 
+    l(x,u) = 1/2 (x - x_ref)^T Q (x - x_ref) + 1/2 (u - u_ref)^T R (u - u_ref)
+
+    Args
+      - xx \in \R^2 state at time t
+      - xx_ref \in \R^2 state reference at time t
+
+      - uu \in \R^1 input at time t
+      - uu_ref \in \R^2 input reference at time t
+
+
+    Return 
+      - cost at xx,uu
+      - gradient of l wrt x, at xx,uu
+      - gradient of l wrt u, at xx,uu
+  
+  """
+
+  xx = xx[:,None]
+  uu = uu[:,None]
+
+  xx_ref = xx_ref[:,None]
+  uu_ref = uu_ref[:,None]
+
+  ll = 0.5*(xx - xx_ref).T@QQt@(xx - xx_ref) + 0.5*(uu - uu_ref).T@RRt@(uu - uu_ref)
+
+  lx = QQt@(xx - xx_ref)
+  lu = RRt@(uu - uu_ref)
+
+  return ll.squeeze(), lx, lu
+
+def termcost(xT,xT_ref, QQT = QQt):
+  """
+    Terminal-cost
+
+    Quadratic cost function l_T(x) = 1/2 (x - x_ref)^T Q_T (x - x_ref)
+
+    Args
+      - xT \in \R^2 state at time t
+      - xT_ref \in \R^2 state reference at time t
+
+    Return 
+      - cost at xT,uu
+      - gradient of l wrt x, at xT,uu
+      - gradient of l wrt u, at xT,uu
+  
+  """
+
+  # xT = xT[:,None]
+  # xT_ref = xT_ref[:,None]
+
+  llT = 0.5*(xT - xT_ref).T@QQT@(xT - xT_ref)
+
+  lTx = QQT@(xT - xT_ref)
+
+
+  return llT.squeeze(), lTx
